@@ -139,3 +139,66 @@ def countdown():
         mins, secs = divmod(time_sec, 60)
         hours, mins = divmod(mins, 60)
         timeformat = f'{hours:02d}:{mins:
+                timeformat = f'{hours:02d}:{mins:02d}:{secs:02d}'
+        print('Restarting in:', timeformat, end='\r')
+        time.sleep(1)
+        time_sec -= 1
+
+def get_full_chat():
+    client = Client('user', takeout=True)
+    with client:
+        get_chats(client, configs["bot_id"])
+        chat_ids = get_ids(client)
+    
+    app = Client(mode)
+    app.set_parse_mode(ParseMode.DISABLED)
+    with app:
+        auto_forward(app, chat_ids)
+
+def main():
+    global delay
+    if options.api_id:
+        connect_to_api(options.api_id, options.api_hash, options.bot_token)
+    else:
+        config_data = ConfigParser()
+        config_data.read("config.ini")
+        config_data = dict(config_data["default"])
+        configs["user_delay_seconds"] = float(config_data["user_delay_seconds"])
+        configs["bot_delay_seconds"] = float(config_data["bot_delay_seconds"])
+        configs["bot_id"] = config_data["bot_id"]
+
+        delay = configs["user_delay_seconds"] if mode == "user" else configs["bot_delay_seconds"]
+
+        if options.restart:
+            while True:
+                get_full_chat()
+                countdown()
+        else:
+            get_full_chat()
+
+if __name__ == "__main__":
+    parser = ArgumentParser()
+    parser.add_argument("-m", "--mode", choices=["user", "bot"], default="user", help="Mode: 'user' or 'bot'")
+    parser.add_argument("-R", "--restart", action=BooleanOptionalAction, help="Restart task")
+    parser.add_argument("-o", "--orig", help="Origin chat ID")
+    parser.add_argument("-d", "--dest", help="Destination chat ID")
+    parser.add_argument("-q", "--query", type=str, default="", help="Query string")
+    parser.add_argument("-r", "--resume", action=BooleanOptionalAction, help="Resume task")
+    parser.add_argument("-l", "--limit", type=int, default=0, help="Max number of messages to forward")
+    parser.add_argument("-f", "--filter", type=str, default=None, help="Filter messages by kind")
+    parser.add_argument('-i', '--api-id', type=int, help="API ID")
+    parser.add_argument('-s', '--api-hash', type=str, help="API Hash")
+    parser.add_argument('-b', '--bot-token', type=str, help="Bot Token")
+    options = parser.parse_args()
+
+    configs = {}
+    chats = {}
+
+    from_chat = options.orig
+    to_chat = options.dest
+    mode = options.mode
+    query = options.query
+    limit = options.limit
+    filter = options.filter.split(",") if filter else None
+
+    main()
